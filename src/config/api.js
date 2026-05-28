@@ -183,8 +183,19 @@ API.interceptors.response.use(
     const config = error.config || {};
     const status = error?.response?.status;
 
-    if (status === 401 && onUnauthorized) {
-      onUnauthorized();
+    if (status === 401) {
+      if (config.url !== API_ENDPOINTS.AUTH.REFRESH && !config._retry) {
+        config._retry = true;
+        try {
+          await API.post(API_ENDPOINTS.AUTH.REFRESH);
+          return API(config);
+        } catch (refreshError) {
+          if (onUnauthorized) onUnauthorized();
+          throw normalizeApiError(refreshError);
+        }
+      } else {
+        if (onUnauthorized) onUnauthorized();
+      }
     }
 
     const retryCount = config._retryCount || 0;
@@ -215,6 +226,7 @@ export const API_ENDPOINTS = {
     REGISTER: buildApiUrl("/api/auth/signup"),
     SIGNUP: buildApiUrl("/api/auth/signup"),
     LOGOUT: buildApiUrl("/api/auth/logout"),
+    REFRESH: buildApiUrl("/api/auth/refresh"),
     RESET_PASSWORD: buildApiUrl("/api/auth/reset-password"),
     OAUTH: buildApiUrl("/api/auth/oauth"),
   },
